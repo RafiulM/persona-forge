@@ -1,0 +1,178 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Setup Next.js Project with Supabase and Clerk Integration",
+        "description": "Initialize the project with Next.js App Router, configure Supabase as the backend database, and integrate Clerk for authentication.",
+        "details": "1. Create a new Next.js project using the App Router: `npx create-next-app@latest personaforge --typescript --tailwind --eslint --app`\n2. Install required dependencies: `npm install @supabase/supabase-js @clerk/nextjs @vercel/ai shadcn/ui`\n3. Set up environment variables for Supabase and Clerk in `.env.local`\n4. Configure Clerk middleware to protect routes\n5. Initialize Supabase client with proper configuration\n6. Set up shadcn/ui component system\n7. Create basic folder structure following Next.js App Router conventions\n8. Implement basic layout with navigation components",
+        "testStrategy": "1. Verify successful project initialization and dependency installation\n2. Test authentication flow with Clerk (sign up, sign in, sign out)\n3. Confirm Supabase connection is working by performing a simple query\n4. Ensure protected routes are properly secured\n5. Validate that the basic layout renders correctly",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 2,
+        "title": "Design and Implement Database Schema",
+        "description": "Create the database schema in Supabase with proper tables, relationships, and Row Level Security policies.",
+        "details": "1. Create the following tables in Supabase:\n   - users: id (Clerk user_id), email, created_at, updated_at\n   - agents: id, user_id (FK), name, system_prompt, avatar_url, model_config (JSONB), created_at, updated_at\n   - agent_knowledge_bases: id, agent_id (FK), document_name, document_url, content, embedding (vector type)\n   - chat_messages: id, agent_id (FK), user_id (FK), role (user/assistant), content, timestamp\n\n2. Enable pgvector extension in Supabase\n3. Set up foreign key relationships between tables\n4. Implement Row Level Security (RLS) policies to ensure users can only access their own data\n5. Create necessary indexes for performance optimization\n6. Set up Supabase Storage buckets for document uploads with appropriate security policies",
+        "testStrategy": "1. Verify all tables are created with correct columns and data types\n2. Test RLS policies by attempting to access data across different user contexts\n3. Confirm foreign key constraints work properly\n4. Validate pgvector extension is properly enabled and functioning\n5. Test storage bucket access controls",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 3,
+        "title": "Implement User Authentication and Onboarding Flow",
+        "description": "Create the authentication system using Clerk, including sign-up, sign-in, and session management, with proper integration to Supabase.",
+        "details": "1. Set up Clerk authentication components:\n   - SignIn\n   - SignUp\n   - UserProfile\n   - UserButton\n2. Create authentication pages in the app/auth directory\n3. Implement webhook to sync Clerk user data to Supabase users table\n4. Create protected layout for authenticated routes\n5. Design and implement the onboarding experience for new users\n6. Add social login options (Google, GitHub)\n7. Implement session management and token refresh logic\n8. Create user context provider to make auth state available throughout the app",
+        "testStrategy": "1. Test complete sign-up flow with email/password\n2. Test social login options\n3. Verify user data is correctly synced to Supabase\n4. Test session persistence and token refresh\n5. Validate protected routes are inaccessible without authentication\n6. Test user logout functionality\n7. Ensure proper error handling for authentication failures",
+        "priority": "high",
+        "dependencies": [
+          1,
+          2
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 4,
+        "title": "Create Dashboard and Agent Management UI",
+        "description": "Build the main dashboard interface displaying all user agents with management capabilities.",
+        "details": "1. Create a responsive dashboard layout using shadcn/ui components\n2. Implement agent card component with:\n   - Agent name\n   - Avatar display\n   - Brief description (truncated system prompt)\n   - Quick action buttons (chat, edit, delete)\n3. Fetch user's agents from Supabase and display in grid/list layout\n4. Implement empty state for new users with guidance to create first agent\n5. Add loading states and error handling\n6. Create confirmation dialog for agent deletion\n7. Implement responsive design for mobile, tablet, and desktop\n8. Add basic sorting/filtering functionality",
+        "testStrategy": "1. Verify dashboard correctly displays all user agents\n2. Test empty state for new users\n3. Validate all quick actions (chat, edit, delete) function correctly\n4. Test responsive layout across different device sizes\n5. Confirm loading states and error handling work as expected\n6. Verify agent deletion with confirmation works properly\n7. Test accessibility compliance",
+        "priority": "high",
+        "dependencies": [
+          2,
+          3
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 5,
+        "title": "Implement Multi-Step Agent Creation Form",
+        "description": "Build the three-step form process for creating new agents, including persona definition, knowledge base building, and final review.",
+        "details": "1. Create a multi-step form component with progress indicator\n2. Implement Step 1 (Define Persona):\n   - Agent name input\n   - System prompt textarea with examples/guidance\n   - Avatar upload with preview and Supabase Storage integration\n   - AI model selection dropdown\n   - Model configuration sliders/inputs (temperature, top_p)\n3. Implement Step 2 (Build Knowledge Base):\n   - Document upload component supporting .txt, .md, and .pdf\n   - URL input for web scraping\n   - Status indicators for processing state\n   - List view of added documents/URLs\n4. Implement Step 3 (Review & Create):\n   - Summary display of all configured options\n   - Final creation button\n5. Create form validation logic for each step\n6. Implement form state management (React Hook Form or similar)\n7. Add server action/API route to process form submission\n8. Implement document processing logic (store in Supabase Storage, extract text)",
+        "testStrategy": "1. Test form navigation between steps\n2. Validate all form inputs with various data\n3. Test file upload functionality with different file types\n4. Verify URL processing works correctly\n5. Test form validation in each step\n6. Confirm agent creation process end-to-end\n7. Verify error handling for all possible failure points\n8. Test accessibility of form components",
+        "priority": "high",
+        "dependencies": [
+          2,
+          3,
+          4
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 6,
+        "title": "Develop Document Processing and Embedding Generation System",
+        "description": "Create the backend system to process uploaded documents and URLs, generate embeddings, and store them in the vector database.",
+        "details": "1. Implement document parsing logic for different file types:\n   - PDF extraction using pdf-parse or similar\n   - Markdown parsing\n   - Plain text handling\n2. Create web scraping functionality for URL inputs using Cheerio or Puppeteer\n3. Implement text chunking algorithm to split documents into appropriate segments\n4. Set up embedding generation using OpenAI's embedding API or alternative\n5. Create a Supabase Edge Function to handle the processing pipeline\n6. Implement queue system for handling multiple document processing requests\n7. Add status tracking for document processing\n8. Implement error handling and retry logic\n9. Optimize storage of embeddings in pgvector",
+        "testStrategy": "1. Test document parsing with various file formats and sizes\n2. Verify web scraping works on different types of websites\n3. Test chunking algorithm produces appropriate segment sizes\n4. Validate embedding generation and storage in pgvector\n5. Test concurrent processing of multiple documents\n6. Verify error handling for malformed documents\n7. Measure and optimize performance for large documents",
+        "priority": "high",
+        "dependencies": [
+          2
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 7,
+        "title": "Build Agent Chat Interface with Streaming Responses",
+        "description": "Develop the real-time chat interface for interacting with agents, including streaming responses and persistent chat history.",
+        "details": "1. Create a dedicated chat page for each agent\n2. Implement chat UI components:\n   - Message list with user/assistant distinction\n   - Message input with send button\n   - Loading/thinking indicators\n   - Markdown rendering for AI responses\n3. Set up Vercel AI SDK for streaming responses\n4. Implement RAG (Retrieval Augmented Generation) flow:\n   - Embed user query\n   - Retrieve relevant context from pgvector\n   - Construct full prompt with system prompt, context, and user query\n   - Stream response from selected LLM\n5. Store chat messages in Supabase for persistence\n6. Implement chat history loading with pagination\n7. Add scroll management for new messages\n8. Implement error handling for API failures",
+        "testStrategy": "1. Test real-time streaming of AI responses\n2. Verify chat history persistence and loading\n3. Test RAG functionality with various queries\n4. Validate markdown rendering in responses\n5. Test with different AI models\n6. Verify error handling during network issues\n7. Test performance with long chat histories\n8. Validate mobile responsiveness of chat interface",
+        "priority": "high",
+        "dependencies": [
+          2,
+          6
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 8,
+        "title": "Implement Agent Editing and Deletion Functionality",
+        "description": "Create the ability to edit existing agents' properties and securely delete agents with all associated data.",
+        "details": "1. Modify the agent creation form to support editing mode\n2. Implement data fetching to pre-populate form with existing agent data\n3. Create update logic for modifying agent properties\n4. Implement knowledge base management in edit mode:\n   - Display existing documents/URLs\n   - Allow removal of existing items\n   - Support adding new items\n5. Create secure deletion flow:\n   - Confirmation dialog with consequences explained\n   - Cascading deletion of all associated data (knowledge base, chat history)\n   - Cleanup of stored files in Supabase Storage\n6. Implement optimistic UI updates for better user experience\n7. Add proper error handling and success notifications",
+        "testStrategy": "1. Test editing all agent properties and saving changes\n2. Verify knowledge base modifications work correctly\n3. Test agent deletion and confirm all associated data is removed\n4. Validate error handling during edit/delete operations\n5. Test with agents that have extensive chat histories\n6. Verify storage cleanup works properly\n7. Test concurrency handling (e.g., editing same agent from multiple tabs)",
+        "priority": "medium",
+        "dependencies": [
+          4,
+          5,
+          6
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 9,
+        "title": "Implement RAG (Retrieval Augmented Generation) System",
+        "description": "Build the core RAG system that retrieves relevant context from the knowledge base and augments AI prompts for contextually informed responses.",
+        "details": "1. Create embedding generation for user queries\n2. Implement vector similarity search using pgvector in Supabase\n3. Develop context window management to handle token limits\n4. Create prompt construction logic:\n   - Include system prompt (agent personality)\n   - Insert retrieved context chunks\n   - Add user query\n   - Format according to model requirements\n5. Implement relevance filtering to exclude low-similarity matches\n6. Add citation/reference tracking to identify sources of information\n7. Create fallback mechanisms when no relevant context is found\n8. Optimize for performance and token efficiency",
+        "testStrategy": "1. Test vector similarity search with various queries\n2. Verify context retrieval returns relevant information\n3. Test with different knowledge base sizes and types\n4. Validate prompt construction with different models\n5. Measure response quality with and without RAG\n6. Test edge cases (no relevant context, very large context)\n7. Benchmark performance and optimize as needed",
+        "priority": "high",
+        "dependencies": [
+          6,
+          7
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 10,
+        "title": "Implement Model Configuration and Selection",
+        "description": "Create the system for selecting and configuring different AI models with appropriate parameters.",
+        "details": "1. Implement model selection dropdown with available options:\n   - GPT-4o\n   - Claude 3\n   - Gemini 1.5 Flash\n2. Create configuration UI for model parameters:\n   - Temperature slider (0-2)\n   - Top-p slider (0-1)\n   - Max tokens input\n   - Other model-specific parameters\n3. Implement model-specific prompt formatting\n4. Create adapter layer in backend to handle different API requirements\n5. Implement caching strategy for API keys and configurations\n6. Add model capability detection and parameter validation\n7. Create fallback mechanisms for API failures\n8. Implement usage tracking for potential future billing",
+        "testStrategy": "1. Test integration with each supported model\n2. Verify parameter changes affect model outputs as expected\n3. Test error handling for API failures\n4. Validate prompt formatting for different models\n5. Test with extreme parameter values\n6. Verify model switching works correctly\n7. Test performance and response times across models",
+        "priority": "medium",
+        "dependencies": [
+          5,
+          7
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 11,
+        "title": "Implement Responsive UI and Cross-Device Compatibility",
+        "description": "Ensure the application is fully responsive and provides an optimal experience across all device sizes.",
+        "details": "1. Implement responsive design for all key pages:\n   - Dashboard\n   - Agent creation/editing forms\n   - Chat interface\n   - Authentication pages\n2. Create mobile-specific navigation (hamburger menu, bottom tabs)\n3. Optimize touch interactions for mobile users\n4. Implement responsive typography and spacing system\n5. Create adaptive layouts that reorganize based on screen size\n6. Optimize image loading and resizing for different devices\n7. Test and fix any accessibility issues on mobile\n8. Implement proper viewport meta tags and PWA capabilities",
+        "testStrategy": "1. Test on various device sizes (mobile, tablet, desktop)\n2. Verify usability on touch devices\n3. Test with screen readers and keyboard navigation\n4. Validate performance metrics on lower-end devices\n5. Test with different browsers (Chrome, Safari, Firefox)\n6. Verify form usability on mobile devices\n7. Test chat interface specifically on small screens",
+        "priority": "medium",
+        "dependencies": [
+          4,
+          5,
+          7
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 12,
+        "title": "Implement Error Handling, Logging and Analytics",
+        "description": "Create comprehensive error handling, logging, and analytics systems to monitor application health and user behavior.",
+        "details": "1. Implement global error boundary for React components\n2. Create standardized error handling for API routes and server actions\n3. Set up client-side error tracking (e.g., Sentry)\n4. Implement user-friendly error messages and recovery options\n5. Create logging system for important events and errors\n6. Set up analytics to track key user actions:\n   - Agent creation\n   - Chat interactions\n   - Document uploads\n   - Feature usage\n7. Implement performance monitoring\n8. Create admin dashboard for monitoring system health (future)",
+        "testStrategy": "1. Test error handling by triggering various error conditions\n2. Verify logs capture appropriate information\n3. Validate analytics data collection accuracy\n4. Test recovery from different error scenarios\n5. Verify error messages are user-friendly\n6. Test performance monitoring accuracy\n7. Validate that sensitive information is not logged",
+        "priority": "medium",
+        "dependencies": [
+          1,
+          3,
+          7
+        ],
+        "status": "pending",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "created": "2025-07-20T13:03:15.596Z",
+      "updated": "2025-07-20T13:03:15.596Z",
+      "description": "Tasks for master context"
+    }
+  }
+}
