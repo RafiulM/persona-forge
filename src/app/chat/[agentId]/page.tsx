@@ -7,8 +7,13 @@ import { useSupabase } from '@/hooks/useSupabase'
 import { useChat } from 'ai/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ArrowLeft, Bot, Send, User, Loader2 } from 'lucide-react'
+import { ArrowLeft, Bot, Send, User, Loader2, Copy, RotateCcw, Trash2, MoreVertical, Clock } from 'lucide-react'
 import Link from 'next/link'
+import ReactMarkdown from 'react-markdown'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { toast } from 'sonner'
 
 interface Agent {
   id: string
@@ -20,6 +25,14 @@ interface Agent {
     max_tokens: number
     top_p: number
   }
+}
+
+interface ChatMessage {
+  id: string
+  agent_id: string
+  role: 'user' | 'assistant'
+  content: string
+  created_at: string
 }
 
 
@@ -34,6 +47,8 @@ export default function ChatPage() {
   
   const [agent, setAgent] = useState<Agent | null>(null)
   const [loading, setLoading] = useState(true)
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([])
+  const [, setLoadingHistory] = useState(true)
 
   const fetchAgentAndMessages = useCallback(async () => {
     try {
@@ -51,10 +66,24 @@ export default function ChatPage() {
       }
 
       setAgent(agentData)
+
+      // Fetch chat history
+      const { data: messagesData, error: messagesError } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .eq('agent_id', agentId)
+        .order('created_at', { ascending: true })
+
+      if (messagesError) {
+        console.error('Error fetching messages:', messagesError)
+      } else {
+        setChatHistory(messagesData || [])
+      }
     } catch (error) {
       console.error('Error:', error)
     } finally {
       setLoading(false)
+      setLoadingHistory(false)
     }
   }, [supabase, agentId, router])
 
@@ -65,21 +94,35 @@ export default function ChatPage() {
     handleInputChange,
     handleSubmit,
     isLoading,
-    error
+    error,
+    reload
   } = useChat({
     api: '/api/chat',
     body: {
       agentId
     },
+    initialMessages: chatHistory.map(msg => ({
+      id: msg.id,
+      role: msg.role,
+      content: msg.content,
+      createdAt: new Date(msg.created_at)
+    })),
     onFinish: async (message) => {
       // Save AI response to database
-      await supabase
+      const { data } = await supabase
         .from('chat_messages')
         .insert({
           agent_id: agentId,
           role: 'assistant',
           content: message.content,
         })
+        .select()
+        .single()
+
+      // Update local chat history
+      if (data) {
+        setChatHistory(prev => [...prev, data])
+      }
     }
   })
 
@@ -93,10 +136,70 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim() || isLoading) return
+
+    // Save user message to database before sending
+    const userMessage = {
+      agent_id: agentId,
+      role: 'user' as const,
+      content: input
+    }
+
+    const { data } = await supabase
+      .from('chat_messages')
+      .insert(userMessage)
+      .select()
+      .single()
+
+    if (data) {
+      setChatHistory(prev => [...prev, data])
+    }
+
     handleSubmit(e)
+  }
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      toast.success('Copied to clipboard')
+    } catch {
+      toast.error('Failed to copy')
+    }
+  }
+
+  const regenerateResponse = (messageIndex: number) => {
+    // Find the last user message before this assistant message
+    const userMessages = messages.filter((_, index) => index < messageIndex && messages[index].role === 'user')
+    if (userMessages.length > 0) {
+      reload()
+    }
+  }
+
+  const clearChat = async () => {
+    try {
+      // Delete all messages for this agent
+      await supabase
+        .from('chat_messages')
+        .delete()
+        .eq('agent_id', agentId)
+
+      // Clear local state
+      setChatHistory([])
+      
+      // Reload to clear the AI SDK messages
+      window.location.reload()
+      
+      toast.success('Chat cleared')
+    } catch {
+      toast.error('Failed to clear chat')
+    }
+  }
+
+  const formatTime = (timestamp: string | Date) => {
+    const date = new Date(timestamp)
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }
 
   if (loading) {
@@ -143,6 +246,19 @@ export default function ChatPage() {
                 </div>
               </div>
             </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={clearChat} className="text-destructive">
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Clear Chat
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>
@@ -161,15 +277,15 @@ export default function ChatPage() {
               </div>
             </div>
           ) : (
-            messages.map((msg) => (
+            messages.map((msg, index) => (
               <div
                 key={msg.id}
-                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} group`}
               >
                 <div className={`flex space-x-2 max-w-[85%] sm:max-w-[75%] ${
                   msg.role === 'user' 
                     ? 'flex-row-reverse space-x-reverse items-start' 
-                    : 'items-end'
+                    : 'items-start'
                 }`}>
                   <div className={`flex-shrink-0 w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center ${msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
                     {msg.role === 'user' ? (
@@ -178,20 +294,97 @@ export default function ChatPage() {
                       <Bot className="h-3 w-3 sm:h-4 sm:w-4" />
                     )}
                   </div>
-                  <div className={`rounded-2xl px-3 py-2 sm:px-4 sm:py-2 ${
-                    msg.role === 'user' 
-                      ? 'bg-primary text-primary-foreground' 
-                      : 'bg-muted'
-                  }`}>
-                    <p className="text-sm sm:text-base leading-relaxed whitespace-pre-wrap">
-                      {msg.content}
-                    </p>
+                  <div className="flex-1 space-y-1">
+                    <div className={`rounded-2xl px-3 py-2 sm:px-4 sm:py-2 ${
+                      msg.role === 'user' 
+                        ? 'bg-primary text-primary-foreground' 
+                        : 'bg-muted'
+                    }`}>
+                      {msg.role === 'assistant' ? (
+                        <div className="prose prose-sm max-w-none dark:prose-invert">
+                          <ReactMarkdown
+                            components={{
+                              code: ({ className, children, ...props }) => {
+                                const match = /language-(\w+)/.exec(className || '')
+                                const isInline = !match
+                                return !isInline && match ? (
+                                  <SyntaxHighlighter
+                                    style={oneDark}
+                                    language={match[1]}
+                                    PreTag="div"
+                                    className="rounded-md text-sm"
+                                  >
+                                    {String(children).replace(/\n$/, '')}
+                                  </SyntaxHighlighter>
+                                ) : (
+                                  <code className={className} {...props}>
+                                    {children}
+                                  </code>
+                                )
+                              }
+                            }}
+                          >
+                            {msg.content}
+                          </ReactMarkdown>
+                        </div>
+                      ) : (
+                        <p className="text-sm sm:text-base leading-relaxed whitespace-pre-wrap">
+                          {msg.content}
+                        </p>
+                      )}
+                    </div>
+                    <div className={`flex items-center space-x-2 px-2 ${
+                      msg.role === 'user' ? 'justify-end' : 'justify-start'
+                    }`}>
+                      <div className="flex items-center text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Clock className="h-3 w-3 mr-1" />
+                        {msg.createdAt ? formatTime(msg.createdAt) : 'Now'}
+                      </div>
+                      <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => copyToClipboard(msg.content)}
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                        {msg.role === 'assistant' && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => regenerateResponse(index)}
+                            disabled={isLoading}
+                          >
+                            <RotateCcw className="h-3 w-3" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             ))
           )}
             
+          
+          {isLoading && (
+            <div className="flex justify-start px-4">
+              <div className="flex space-x-2 max-w-[85%] sm:max-w-[75%]">
+                <div className="flex-shrink-0 w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center bg-muted">
+                  <Bot className="h-3 w-3 sm:h-4 sm:w-4" />
+                </div>
+                <div className="bg-muted rounded-2xl px-3 py-2 sm:px-4 sm:py-2">
+                  <div className="flex items-center space-x-1">
+                    <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                    <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                    <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           
           {error && (
             <div className="flex justify-center px-4">
